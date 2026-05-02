@@ -32,7 +32,7 @@ because we only projected `_id` which it does not needs to look into `contacts` 
 When we create a campaign, all the contacts resolved based on filters are bulk inserted via `insertMany` to create one document per matching `campaignId` + `contactId` **(This is a Compound Key for `deliverylogs` collection)**. It ensures no duplicate documents are created, uses `ordered: false` (To continue even if any insertion fails). 5000 documents are inserted at once.
 
 ```javascript
-db.delivery_logs.find({
+db.deliverylogs.find({
   campaignId: ObjectId("campaignId"),
   contactId: ObjectId("contactId")
 }).explain("executionStats")
@@ -49,7 +49,7 @@ It uses `campaignId` + `status` as Compund Key to narrow down the search. So Eve
 Without this indexing it shall scan the entire collection meaning it would take more time.
 
 ```javascript
-db.delivery_logs.find({
+db.deliverylogs.find({
   campaignId: ObjectId("campaignId"),
   status: "queued"
 }).limit(500).explain("executionStats")
@@ -62,7 +62,7 @@ db.delivery_logs.find({
 The backend (main) runs a status count aggregation every 5 seconds.
 
 ```javascript
-db.delivery_logs.aggregate([
+db.deliverylogs.aggregate([
   { $match: { campaignId: ObjectId("campaignId") } },
   { $group: { _id: "$status", count: { $sum: 1 } } }
 ]).explain("executionStats")
