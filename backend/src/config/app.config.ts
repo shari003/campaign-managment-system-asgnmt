@@ -19,7 +19,6 @@ config.rateLimit = {
 
 config.database = {
     connectionURL: getEnv<string>("DATABASE_URL", ""),
-    connectionType: getEnv<string>("DATABASE_TYPE", "mongodb"),
 };
 
 config.redis = {
@@ -31,8 +30,6 @@ config.environment = getEnv<string>("NODE_ENV", "development");
 
 config.security = {
     allowedOrigins: ["https://campaign-managment-system-asgnmt.vercel.app/", "http://localhost:5173"],
-    blockOnThreat: getEnv<boolean>("BLOCK_ON_THREAT", false),
-    logThreats: getEnv<boolean>("LOG_THREATS", true),
     credentials: getEnv<boolean>("ALLOW_CREDENTIALS", false),
     xssOptions: {
         whiteList: {},
