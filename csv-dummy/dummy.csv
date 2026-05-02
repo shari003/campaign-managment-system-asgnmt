@@ -1,0 +1,6 @@
+name,email,phone,tags,city,plan
+Alice Johnson,alice@example.com,+1-555-0101,premium;active,New York,pro
+Bob Smith,bob@example.com,+1-555-0102,active,Chicago,free
+Carol White,carol@example.com,,premium,Los Angeles,pro
+Dave Brown,dave@example.com,+1-555-0104,,Houston,free
+Jansen,jansen@asdd.com,,premium,Texas,free
