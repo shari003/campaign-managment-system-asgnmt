@@ -40,17 +40,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     next();
 });
 
-app.get("/", (_req: Request, res: Response) => {
+app.get("/api/health", (_req: Request, res: Response) => {
     res.json({ message: "Campaign Management System API", status: "running" });
-});
-
-app.get("/health", (_req: Request, res: Response) => {
-    const envs = {
-        DATABASE_URL: process.env.DATABASE_URL,
-        REDIS_PRODUCTION_URL: process.env.REDIS_PRODUCTION_URL,
-        NODE_ENV: process.env.NODE_ENV,
-    }
-    res.json({ envs });
 });
 
 app.use("/api", routes);
