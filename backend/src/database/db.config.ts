@@ -3,19 +3,17 @@ import config from "../config/app.config";
 
 let isConnected = false;
 
-export async function connectDB(): Promise<void> {
+export async function connectDB() {
+    if(isConnected) return;
     try {
-        if(isConnected) return;
 
         const uri = config.database.connectionURL || "mongodb://127.0.0.1:27017/mydb";
 
-        await mongoose.connect(uri, {
-            bufferCommands: false,
-        });
         isConnected = true;
-        console.log("Database connected successfully");
-    } catch (error) {
+        return await mongoose.connect(uri);
+    } catch (error: any) {
         console.error("Failed to connect to database", { error });
+        throw new Error(error);
     }
 };
 

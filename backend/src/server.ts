@@ -8,9 +8,10 @@ import { disconnectRedis } from './queues/queue.config';
 
 async function startServer() {
     try {
-        await connectDB();
-
-        const server = app.listen(config.port, () => {
+        
+        const server = app.listen(config.port, async () => {
+            
+            await connectDB().then(() => console.log("Database connected successfully")).catch(err => console.log);
             console.log(`Server running on http://localhost:${config.port}`);
         });
 
