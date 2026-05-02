@@ -9,7 +9,9 @@ export async function connectDB(): Promise<void> {
 
         const uri = config.database.connectionURL || "mongodb://127.0.0.1:27017/mydb";
 
-        await mongoose.connect(uri);
+        await mongoose.connect(uri, {
+            bufferCommands: false,
+        });
         isConnected = true;
         console.log("Database connected successfully");
     } catch (error) {
