@@ -1,0 +1,906 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "Campaign Management System",
+    "description": "Complete API collection for the Campaign Management System.\n\n**Base URL:** `http://localhost:5000/api`\n\n**Setup:**\n1. Make sure the redis based BullMQ is started first\n2. Make sure the backend is running on port 5000\n3. The `baseUrl` collection variable is pre-set to `http://localhost:5000/api`\n4. After uploading contacts, copy a contact `_id` into the `contactId` variable\n5. After creating a campaign, copy the campaign `_id` into the `campaignId` variable\n\n**Response shape:**\n```json\n{ \"success\": true, \"data\": { ... }, \"message\": \"...\", \"meta\": null }\n```",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api",
+      "type": "string",
+      "description": "Base URL of the backend API"
+    },
+    {
+      "key": "contactId",
+      "value": "",
+      "type": "string",
+      "description": "Paste a contact _id here after fetching the contact list"
+    },
+    {
+      "key": "campaignId",
+      "value": "",
+      "type": "string",
+      "description": "Paste a campaign _id here after creating a campaign"
+    }
+  ],
+  "item": [
+    {
+      "name": "Contacts",
+      "description": "Endpoints for managing contacts - upload, list, search, and delete.",
+      "item": [
+        {
+          "name": "Upload Contacts CSV",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Select a .csv file from your computer. Required columns: name, email. Optional: phone, tags (semicolon-separated), plus any extra columns stored as metadata."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contacts/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["contacts", "upload"]
+            },
+            "description": "Upload a CSV file to bulk-import contacts.\n\n- Existing contacts matched by `email` are **updated** (upsert)\n- New emails are **inserted**\n- Rows missing `email` are skipped and reported in `errors`\n- Extra CSV columns beyond `name, email, phone, tags` are stored in the contact's `metadata` field\n\n**CSV column format:**\n```\nname,email,phone,tags,city,plan\nAlice Johnson,alice@example.com,+1-555-0101,premium;active,New York,pro\n```\n\n`tags` must be semicolon-separated (`,` is the CSV delimiter)."
+          },
+          "response": [
+            {
+              "name": "200 OK - Upload successful",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": []
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/contacts/upload",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["contacts", "upload"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"CSV processed successfully\",\n  \"data\": {\n    \"totalParsed\": 1000,\n    \"insertedCount\": 850,\n    \"modifiedCount\": 150,\n    \"errors\": []\n  },\n  \"meta\": null\n}"
+            },
+            {
+              "name": "400 Bad Request - No file",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/contacts/upload",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["contacts", "upload"]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"No file uploaded\",\n  \"data\": null,\n  \"meta\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "List Contacts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contacts?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["contacts"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Case-insensitive substring match on name or email",
+                  "disabled": true
+                },
+                {
+                  "key": "tags",
+                  "value": "premium,active",
+                  "description": "Comma-separated tags. Returns contacts matching ANY of these tags",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "description": "ObjectId of the last item from the previous page. Omit for the first page",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Number of contacts per page (default: 20)"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "Field to sort by (default: createdAt)",
+                  "disabled": true
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "Sort direction: asc or desc (default: desc)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Returns a cursor-paginated list of contacts.\n\n**Pagination:** Use the `nextCursor` from the response as the `cursor` param in the next request. When `hasMore` is `false`, you've reached the last page.\n\n**Tag filtering:** `tags=premium,active` returns contacts tagged with `premium` OR `active` (`$in` match).\n\n**Search + tags together:** Both conditions are applied with `AND` logic - contacts must match both."
+          },
+          "response": [
+            {
+              "name": "200 OK - First page",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/contacts?limit=20",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["contacts"],
+                  "query": [{ "key": "limit", "value": "20" }]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Contacts fetched successfully\",\n  \"data\": {\n    \"contacts\": [\n      {\n        \"_id\": \"64f1a2b3c4d5e6f7a8b9c0d1\",\n        \"name\": \"Alice Johnson\",\n        \"email\": \"alice@example.com\",\n        \"phone\": \"+1-555-0101\",\n        \"tags\": [\"premium\", \"active\"],\n        \"metadata\": { \"city\": \"New York\", \"plan\": \"pro\" },\n        \"createdAt\": \"2024-01-15T10:30:00.000Z\",\n        \"updatedAt\": \"2024-01-15T10:30:00.000Z\"\n      }\n    ],\n    \"hasMore\": true,\n    \"nextCursor\": \"64f1a2b3c4d5e6f7a8b9c0d1\"\n  },\n  \"meta\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "List Contacts - With Search",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contacts?search=alice&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["contacts"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "alice",
+                  "description": "Searches name and email fields (case-insensitive)"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Search contacts by name or email. The search is case-insensitive and matches substrings."
+          },
+          "response": []
+        },
+        {
+          "name": "List Contacts - With Tag Filter",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contacts?tags=premium,active&limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["contacts"],
+              "query": [
+                {
+                  "key": "tags",
+                  "value": "premium,active",
+                  "description": "Returns contacts that have AT LEAST ONE of these tags"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "Filter contacts by tags. Comma-separated list. Uses MongoDB `$in` - contacts having any of the listed tags are returned."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Contact Count",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/count",
+              "host": ["{{baseUrl}}"],
+              "path": ["contacts", "count"]
+            },
+            "description": "Returns the total number of contacts in the database.\n\nUses `estimatedDocumentCount()` - reads from MongoDB collection metadata. O(1) operation, no collection scan regardless of dataset size."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/contacts/count",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["contacts", "count"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Contact count fetched\",\n  \"data\": {\n    \"count\": 48230\n  },\n  \"meta\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Contact by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/{{contactId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["contacts", "{{contactId}}"]
+            },
+            "description": "Fetch a single contact by its MongoDB ObjectId.\n\n**Setup:** Set the `contactId` collection variable to a valid contact `_id` before sending."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/contacts/{{contactId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["contacts", "{{contactId}}"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Contact fetched\",\n  \"data\": {\n    \"_id\": \"64f1a2b3c4d5e6f7a8b9c0d1\",\n    \"name\": \"Alice Johnson\",\n    \"email\": \"alice@example.com\",\n    \"phone\": \"+1-555-0101\",\n    \"tags\": [\"premium\", \"active\"],\n    \"metadata\": { \"city\": \"New York\", \"plan\": \"pro\" },\n    \"createdAt\": \"2024-01-15T10:30:00.000Z\",\n    \"updatedAt\": \"2024-01-15T10:30:00.000Z\"\n  },\n  \"meta\": null\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/contacts/{{contactId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["contacts", "{{contactId}}"]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Contact not found\",\n  \"data\": null,\n  \"meta\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Contact",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/{{contactId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["contacts", "{{contactId}}"]
+            },
+            "description": "Permanently delete a contact by ID.\n\n⚠️ Does **not** cascade-delete associated DeliveryLogs - existing campaign logs for this contact remain in the database.\n\n**Setup:** Set the `contactId` collection variable before sending."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/contacts/{{contactId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["contacts", "{{contactId}}"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Contact deleted\",\n  \"data\": null,\n  \"meta\": null\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/contacts/{{contactId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["contacts", "{{contactId}}"]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Contact not found\",\n  \"data\": null,\n  \"meta\": null\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Campaigns",
+      "description": "Endpoints for creating and managing messaging campaigns.",
+      "item": [
+        {
+          "name": "Create Campaign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Summer Sale Announcement\",\n  \"messageTemplate\": \"Hi user, check out our exclusive summer deals just for you!\",\n  \"audienceFilter\": {\n    \"tags\": [\"premium\", \"active\"],\n    \"search\": \"gmail.com\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/campaigns",
+              "host": ["{{baseUrl}}"],
+              "path": ["campaigns"]
+            },
+            "description": "Create a new campaign.\n\n**What happens on creation:**\n1. Audience is resolved immediately - contacts matching `audienceFilter` are found\n2. One `DeliveryLog` with `status: queued` is created per matching contact\n3. Campaign is saved with `status: draft` and `totalContacts` set\n4. Campaign must be explicitly started via `POST /campaigns/:id/start`\n\n**`audienceFilter` rules:**\n- Omit entirely → targets **all** contacts\n- `tags` only → contacts having ANY of the listed tags\n- `search` only → contacts whose name or email contains the search string\n- Both `tags` + `search` → contacts must satisfy **both** conditions (AND logic)\n\n**`messageTemplate`:** Use `user` as a personalization placeholder for the contact's name."
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Summer Sale Announcement\",\n  \"messageTemplate\": \"Hi user, check out our summer deals!\",\n  \"audienceFilter\": {\n    \"tags\": [\"premium\"]\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/campaigns",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["campaigns"]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Campaign created\",\n  \"data\": {\n    \"_id\": \"64f1a2b3c4d5e6f7a8b9c0d2\",\n    \"name\": \"Summer Sale Announcement\",\n    \"messageTemplate\": \"Hi user, check out our summer deals!\",\n    \"status\": \"draft\",\n    \"audienceFilter\": {\n      \"tags\": [\"premium\"],\n      \"search\": \"\"\n    },\n    \"totalContacts\": 5000,\n    \"sentCount\": 0,\n    \"failedCount\": 0,\n    \"pendingCount\": 5000,\n    \"scheduledAt\": null,\n    \"completedAt\": null,\n    \"createdAt\": \"2024-01-15T11:00:00.000Z\",\n    \"updatedAt\": \"2024-01-15T11:00:00.000Z\"\n  },\n  \"meta\": null\n}"
+            },
+            {
+              "name": "400 Bad Request - Missing fields",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Incomplete Campaign\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/campaigns",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["campaigns"]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"name and messageTemplate are required\",\n  \"data\": null,\n  \"meta\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Campaign - Target All Contacts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Global Newsletter\",\n  \"messageTemplate\": \"Hello user, we have an important update for you!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/campaigns",
+              "host": ["{{baseUrl}}"],
+              "path": ["campaigns"]
+            },
+            "description": "Create a campaign with no `audienceFilter` - targets every contact in the database."
+          },
+          "response": []
+        },
+        {
+          "name": "List Campaigns",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/campaigns?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["campaigns"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "running",
+                  "description": "Filter by status: draft | running | completed | paused | failed",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "description": "ObjectId of the last campaign from the previous page",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Number of campaigns per page (default: 20)"
+                }
+              ]
+            },
+            "description": "Returns a cursor-paginated list of campaigns sorted by `createdAt` descending (newest first).\n\nThe frontend polls this endpoint every 5 seconds to show live status updates."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/campaigns?limit=20",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["campaigns"],
+                  "query": [{ "key": "limit", "value": "20" }]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Campaigns fetched\",\n  \"data\": {\n    \"campaigns\": [\n      {\n        \"_id\": \"64f1a2b3c4d5e6f7a8b9c0d2\",\n        \"name\": \"Summer Sale Announcement\",\n        \"status\": \"running\",\n        \"totalContacts\": 5000,\n        \"sentCount\": 2300,\n        \"failedCount\": 200,\n        \"pendingCount\": 2500,\n        \"createdAt\": \"2024-01-15T11:00:00.000Z\",\n        \"updatedAt\": \"2024-01-15T11:05:00.000Z\"\n      }\n    ],\n    \"hasMore\": false,\n    \"nextCursor\": null\n  },\n  \"meta\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "List Campaigns - Filter by Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/campaigns?status=running&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["campaigns"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "running",
+                  "description": "Allowed values: draft | running | completed | paused | failed"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Filter campaigns by their current status. Useful for showing only active campaigns on the dashboard."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/campaigns/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["campaigns", "dashboard"]
+            },
+            "description": "Returns aggregated statistics across all campaigns plus the total contact count.\n\n**Performance note:** Powered by a single MongoDB `$group` aggregation on the Campaign collection - reads pre-computed `sentCount`, `failedCount`, `pendingCount` counters. Does **not** scan the DeliveryLog collection. O(campaigns) not O(messages).\n\nThe frontend polls this endpoint every 5 seconds."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/campaigns/dashboard",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["campaigns", "dashboard"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Dashboard stats fetched\",\n  \"data\": {\n    \"totalContacts\": 48230,\n    \"totalCampaigns\": 12,\n    \"totalSent\": 95400,\n    \"totalFailed\": 8600,\n    \"totalPending\": 16000,\n    \"campaignsByStatus\": {\n      \"draft\": 3,\n      \"running\": 2,\n      \"completed\": 6,\n      \"failed\": 1\n    }\n  },\n  \"meta\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Campaign by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/campaigns/{{campaignId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["campaigns", "{{campaignId}}"]
+            },
+            "description": "Fetch a single campaign document by its MongoDB ObjectId.\n\n**Setup:** Set the `campaignId` collection variable to a valid campaign `_id` before sending."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/campaigns/{{campaignId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["campaigns", "{{campaignId}}"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Campaign fetched\",\n  \"data\": {\n    \"_id\": \"64f1a2b3c4d5e6f7a8b9c0d2\",\n    \"name\": \"Summer Sale Announcement\",\n    \"messageTemplate\": \"Hi user, check out our summer deals!\",\n    \"status\": \"completed\",\n    \"audienceFilter\": { \"tags\": [\"premium\"], \"search\": \"\" },\n    \"totalContacts\": 5000,\n    \"sentCount\": 4510,\n    \"failedCount\": 490,\n    \"pendingCount\": 0,\n    \"scheduledAt\": null,\n    \"completedAt\": \"2024-01-15T11:12:00.000Z\",\n    \"createdAt\": \"2024-01-15T11:00:00.000Z\",\n    \"updatedAt\": \"2024-01-15T11:12:00.000Z\"\n  },\n  \"meta\": null\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/campaigns/{{campaignId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["campaigns", "{{campaignId}}"]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Campaign not found\",\n  \"data\": null,\n  \"meta\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Start Campaign",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/campaigns/{{campaignId}}/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["campaigns", "{{campaignId}}", "start"]
+            },
+            "description": "Start a campaign that is currently in `draft` status.\n\n**What happens:**\n1. Campaign `status` is set to `running`\n2. A BullMQ job `{ campaignId }` is enqueued in Redis with `jobId: campaign-{id}` (prevents duplicate jobs)\n3. API returns **immediately** - processing is fully asynchronous\n4. The worker picks up the job and processes contacts in batches of 500\n\n**Constraints:**\n- Only campaigns in `draft` status can be started\n- Calling this on a `running` or `completed` campaign returns `400`\n\n**Setup:** Set the `campaignId` collection variable to a `draft` campaign `_id`."
+          },
+          "response": [
+            {
+              "name": "200 OK - Campaign started",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/campaigns/{{campaignId}}/start",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["campaigns", "{{campaignId}}", "start"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Campaign started\",\n  \"data\": {\n    \"_id\": \"64f1a2b3c4d5e6f7a8b9c0d2\",\n    \"name\": \"Summer Sale Announcement\",\n    \"status\": \"running\",\n    \"totalContacts\": 5000,\n    \"sentCount\": 0,\n    \"failedCount\": 0,\n    \"pendingCount\": 5000,\n    \"createdAt\": \"2024-01-15T11:00:00.000Z\",\n    \"updatedAt\": \"2024-01-15T11:01:00.000Z\"\n  },\n  \"meta\": null\n}"
+            },
+            {
+              "name": "400 Bad Request - Already running",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/campaigns/{{campaignId}}/start",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["campaigns", "{{campaignId}}", "start"]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Cannot start campaign in \\\"running\\\" status\",\n  \"data\": null,\n  \"meta\": null\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/campaigns/{{campaignId}}/start",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["campaigns", "{{campaignId}}", "start"]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Campaign not found\",\n  \"data\": null,\n  \"meta\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Campaign Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/campaigns/{{campaignId}}/details",
+              "host": ["{{baseUrl}}"],
+              "path": ["campaigns", "{{campaignId}}", "details"]
+            },
+            "description": "Returns the full campaign document, a live status breakdown from DeliveryLogs, and a timeline of message activity grouped by minute.\n\n**Three queries run in parallel (`Promise.all`):**\n1. `Campaign.findById` - the campaign document\n2. `DeliveryLog.aggregate $group by status` - live counts per status\n3. `DeliveryLog.aggregate $group by status + minute` - timeline for charting\n\nThe frontend polls this endpoint every 5 seconds to update the progress bar and stat cards on the campaign detail page.\n\n**Setup:** Set the `campaignId` collection variable."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/campaigns/{{campaignId}}/details",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["campaigns", "{{campaignId}}", "details"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Campaign details fetched\",\n  \"data\": {\n    \"campaign\": {\n      \"_id\": \"64f1a2b3c4d5e6f7a8b9c0d2\",\n      \"name\": \"Summer Sale Announcement\",\n      \"status\": \"running\",\n      \"totalContacts\": 5000,\n      \"sentCount\": 2300,\n      \"failedCount\": 200,\n      \"pendingCount\": 2500\n    },\n    \"counts\": {\n      \"queued\": 2500,\n      \"processing\": 0,\n      \"sent\": 2300,\n      \"failed\": 200\n    },\n    \"timeline\": [\n      {\n        \"_id\": { \"status\": \"sent\", \"minute\": \"2024-01-15T11:01\" },\n        \"count\": 500\n      },\n      {\n        \"_id\": { \"status\": \"failed\", \"minute\": \"2024-01-15T11:01\" },\n        \"count\": 50\n      },\n      {\n        \"_id\": { \"status\": \"sent\", \"minute\": \"2024-01-15T11:02\" },\n        \"count\": 500\n      }\n    ]\n  },\n  \"meta\": null\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/campaigns/{{campaignId}}/details",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["campaigns", "{{campaignId}}", "details"]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Campaign not found\",\n  \"data\": null,\n  \"meta\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Campaign Delivery Logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/campaigns/{{campaignId}}/logs?limit=25",
+              "host": ["{{baseUrl}}"],
+              "path": ["campaigns", "{{campaignId}}", "logs"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "failed",
+                  "description": "Filter by delivery status: queued | processing | sent | failed",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "description": "ObjectId of the last log from the previous page",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "25",
+                  "description": "Logs per page (default: 50)"
+                }
+              ]
+            },
+            "description": "Returns a cursor-paginated list of DeliveryLogs for a campaign.\n\nEach log has `contactId` **populated** with `name`, `email`, and `phone` - no separate contact lookup needed.\n\n**Common use cases:**\n- `?status=failed` - show only failed deliveries for retry analysis\n- `?status=sent` - verify sent messages\n- No `status` param → all logs\n\n**Setup:** Set the `campaignId` collection variable."
+          },
+          "response": [
+            {
+              "name": "200 OK - All logs",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/campaigns/{{campaignId}}/logs?limit=25",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["campaigns", "{{campaignId}}", "logs"],
+                  "query": [{ "key": "limit", "value": "25" }]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Delivery logs fetched\",\n  \"data\": {\n    \"logs\": [\n      {\n        \"_id\": \"64f1a2b3c4d5e6f7a8b9c0d3\",\n        \"campaignId\": \"64f1a2b3c4d5e6f7a8b9c0d2\",\n        \"contactId\": {\n          \"_id\": \"64f1a2b3c4d5e6f7a8b9c0d1\",\n          \"name\": \"Alice Johnson\",\n          \"email\": \"alice@example.com\",\n          \"phone\": \"+1-555-0101\"\n        },\n        \"status\": \"sent\",\n        \"retryCount\": 0,\n        \"lastError\": null,\n        \"sentAt\": \"2024-01-15T11:06:00.000Z\",\n        \"createdAt\": \"2024-01-15T11:00:00.000Z\",\n        \"updatedAt\": \"2024-01-15T11:06:00.000Z\"\n      },\n      {\n        \"_id\": \"64f1a2b3c4d5e6f7a8b9c0d4\",\n        \"campaignId\": \"64f1a2b3c4d5e6f7a8b9c0d2\",\n        \"contactId\": {\n          \"_id\": \"64f1a2b3c4d5e6f7a8b9c0d5\",\n          \"name\": \"Bob Smith\",\n          \"email\": \"bob@example.com\",\n          \"phone\": null\n        },\n        \"status\": \"failed\",\n        \"retryCount\": 1,\n        \"lastError\": \"Simulated delivery failure\",\n        \"sentAt\": null,\n        \"createdAt\": \"2024-01-15T11:00:00.000Z\",\n        \"updatedAt\": \"2024-01-15T11:06:00.000Z\"\n      }\n    ],\n    \"hasMore\": true,\n    \"nextCursor\": \"64f1a2b3c4d5e6f7a8b9c0d4\"\n  },\n  \"meta\": null\n}"
+            },
+            {
+              "name": "200 OK - Failed logs only",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/campaigns/{{campaignId}}/logs?status=failed&limit=25",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["campaigns", "{{campaignId}}", "logs"],
+                  "query": [
+                    { "key": "status", "value": "failed" },
+                    { "key": "limit", "value": "25" }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Delivery logs fetched\",\n  \"data\": {\n    \"logs\": [\n      {\n        \"_id\": \"64f1a2b3c4d5e6f7a8b9c0d4\",\n        \"campaignId\": \"64f1a2b3c4d5e6f7a8b9c0d2\",\n        \"contactId\": {\n          \"_id\": \"64f1a2b3c4d5e6f7a8b9c0d5\",\n          \"name\": \"Bob Smith\",\n          \"email\": \"bob@example.com\",\n          \"phone\": null\n        },\n        \"status\": \"failed\",\n        \"retryCount\": 1,\n        \"lastError\": \"Simulated delivery failure\",\n        \"sentAt\": null,\n        \"createdAt\": \"2024-01-15T11:00:00.000Z\",\n        \"updatedAt\": \"2024-01-15T11:06:00.000Z\"\n      }\n    ],\n    \"hasMore\": false,\n    \"nextCursor\": null\n  },\n  \"meta\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Campaign",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/campaigns/{{campaignId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["campaigns", "{{campaignId}}"]
+            },
+            "description": "Permanently delete a campaign and **all its associated DeliveryLogs**.\n\n⚠️ This is a cascading delete - all DeliveryLogs for this campaign are removed first, then the campaign document is deleted.\n\n⚠️ Can be called on any campaign regardless of status. Deleting a `running` campaign will leave a job in the BullMQ queue - the worker will fail gracefully when it can't find the campaign.\n\n**Setup:** Set the `campaignId` collection variable."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/campaigns/{{campaignId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["campaigns", "{{campaignId}}"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Campaign deleted\",\n  \"data\": null,\n  \"meta\": null\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/campaigns/{{campaignId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["campaigns", "{{campaignId}}"]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Campaign not found\",\n  \"data\": null,\n  \"meta\": null\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
