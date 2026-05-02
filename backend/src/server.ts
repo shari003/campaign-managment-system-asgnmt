@@ -4,6 +4,7 @@ dotenv.config();
 import app from "./app";
 import config from "./config/app.config";
 import { connectDB, disconnectDB } from "./database/db.config";
+import { disconnectRedis } from './queues/queue.config';
 
 async function startServer() {
     try {
@@ -17,6 +18,7 @@ async function startServer() {
             console.log("SIGINT received, shutting down gracefully");
             server.close(async () => {
                 await disconnectDB();
+                await disconnectRedis();
                 process.exit(0);
             });
         });
@@ -25,6 +27,7 @@ async function startServer() {
             console.log("SIGTERM received, shutting down gracefully");
             server.close(async () => {
                 await disconnectDB();
+                await disconnectRedis();
                 process.exit(0);
             });
         });

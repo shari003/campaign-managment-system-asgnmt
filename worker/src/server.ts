@@ -1,10 +1,11 @@
 import dotenv from "dotenv";
 dotenv.config();
-
 import { Worker } from "bullmq";
-import { connectDB, disconnectDB } from "./database/db.config";
-import { getRedisConnection } from "./queues/queue.config";
+
 import processCampaign from "./processors/campaign.processor";
+
+import { connectDB, disconnectDB } from "./database/db.config";
+import { disconnectRedis, getRedisConnection } from "./queues/queue.config";
 
 async function startWorker() {
     try {
@@ -37,6 +38,7 @@ async function startWorker() {
             console.log("[Worker] Shutting down gracefully...");
             await worker.close();
             await disconnectDB();
+            await disconnectRedis();
             process.exit(0);
         };
 

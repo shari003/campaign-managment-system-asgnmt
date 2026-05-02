@@ -30,7 +30,7 @@ config.redis = {
 config.environment = getEnv<string>("NODE_ENV", "development");
 
 config.security = {
-    allowedOrigins: getEnv<string[]>("ALLOWED_ORIGINS", []),
+    allowedOrigins: ["https://campaign-managment-system-asgnmt.vercel.app/", "http://localhost:5173"],
     blockOnThreat: getEnv<boolean>("BLOCK_ON_THREAT", false),
     logThreats: getEnv<boolean>("LOG_THREATS", true),
     credentials: getEnv<boolean>("ALLOW_CREDENTIALS", false),
