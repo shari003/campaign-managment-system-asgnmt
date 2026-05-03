@@ -1,4 +1,5 @@
 import express, { Application, Request, Response, NextFunction } from "express";
+import morgan from "morgan";
 
 import config from "./config/app.config";
 import routes from "./routes";
@@ -7,6 +8,8 @@ const app: Application = express();
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
+
+app.use(morgan("dev"));
 
 app.use((req: Request, res: Response, next: NextFunction) => {
     const origins = config.security.allowedOrigins;

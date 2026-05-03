@@ -55,7 +55,7 @@ export async function uploadCSV(fileBuffer: Buffer) {
     let insertedCount = 0;
     let modifiedCount = 0;
     const bulkErrors: string[] = [];
-    const batchSize = 1000;
+    const batchSize = 5000;
 
     for (let i = 0; i < ops.length; i += batchSize) {
         try {
