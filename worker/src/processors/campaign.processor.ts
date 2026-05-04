@@ -94,7 +94,7 @@ async function processCampaign(job: Job<{ campaignId: string }>) {
     }
 
     await Campaign.findByIdAndUpdate(campaignId, {
-        $set: { status: "completed", completedAt: new Date() },
+        $set: { status: CampaignStatus.COMPLETED, completedAt: new Date() },
     });
 
     console.log(`[Worker] Campaign ${campaignId} completed. Total processed: ${processedTotal}`);
